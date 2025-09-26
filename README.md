@@ -79,21 +79,21 @@ Or you can pass the bucket and prefix via CLI flags:
 ## CLI Usage
 ```
 # Recover WAL state from S3
-./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo recover
+./s3wal --bucket your-bucket-name --prefix wal-demo recover
 
 # Append records
-./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo append "Record #1"
-./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo append "Record #2"
+./s3wal --bucket  your-bucket-name --prefix wal-demo append "Record #1"
+./s3wal --bucket  your-bucket-name --prefix wal-demo append "Record #2"
 
 # Read records
-./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo read 1
-./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo read 2
+./s3wal --bucket  your-bucket-name --prefix wal-demo read 1
+./s3wal --bucket  your-bucket-name --prefix wal-demo read 2
 
 # Get the last record
-./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo last
+./s3wal --bucket  your-bucket-name --prefix wal-demo last
 
 # Truncate WAL after a specific offset
-./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo truncate 2
+./s3wal --bucket  your-bucket-name --prefix wal-demo truncate 2
 ```
 
 
@@ -119,17 +119,24 @@ Truncate deletes all records after a given offset.
 
 ## Example Output
 ```
-$ ./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo append "Hello World"
+$ ./s3wal --bucket  your-bucket-name --prefix wal-demo append "Hello World"
 Appended record at offset: 1, data: Hello World
 
-$ ./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo read 1
+$ ./s3wal --bucket  your-bucket-name --prefix wal-demo read 1
 Offset: 1, Data: Hello World
 
-$ ./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo last
+$ ./s3wal --bucket  your-bucket-name --prefix wal-demo last
 Last record: offset=1, data=Hello World
 
-$ ./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo truncate 0
+$ ./s3wal --bucket  your-bucket-name --prefix wal-demo truncate 0
 Truncated WAL after offset 0
 ```
 
 - A script is added for CLI testing
+
+```
+chmod +x test_wal.sh
+./test_wal.sh
+
+```
+
