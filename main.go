@@ -13,16 +13,16 @@ import (
 )
 
 func main() {
+	// Load .env
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, using environment variables")
 	}
 
 	bucket := os.Getenv("AWS_BUCKET_NAME")
 	prefix := os.Getenv("AWS_PREFIX")
-	awsRegion := os.Getenv("AWS_REGION")
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(awsRegion),
+		config.WithRegion(os.Getenv("AWS_REGION")),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -31,21 +31,44 @@ func main() {
 	client := s3.NewFromConfig(cfg)
 	wal := s3_log.NewS3WAL(client, bucket, prefix)
 
+	ctx := context.TODO()
+
 	// Recover WAL state
-	lastOffset, _ := wal.Recover(context.TODO())
+	lastOffset, _ := wal.Recover(ctx)
 	fmt.Println("Last offset:", lastOffset)
 
-	// Append a record
-	offset, err := wal.Append(context.TODO(), []byte("Hello S3 WAL!"))
-	if err != nil {
-		log.Fatalf("Append failed: %v", err)
+	// Append multiple records
+	for i := 1; i <= 5; i++ {
+		data := []byte(fmt.Sprintf("Record #%d", i))
+		offset, err := wal.Append(ctx, data)
+		if err != nil {
+			log.Fatalf("Append failed: %v", err)
+		}
+		fmt.Printf("Appended record at offset: %d, data: %s\n", offset, string(data))
 	}
-	fmt.Println("Appended record at offset:", offset)
 
-	// Read last record
-	lastRecord, err := wal.LastRecord(context.TODO())
+	// Read specific record
+	readOffset := uint64(3)
+	rec, err := wal.Read(ctx, readOffset)
 	if err != nil {
-		log.Fatalf("Failed to get last record: %v", err)
+		log.Fatalf("Read failed: %v", err)
 	}
-	fmt.Printf("Last record: offset=%d, data=%s\n", lastRecord.Offset, string(lastRecord.Data))
+	fmt.Printf("Read record at offset %d: %s\n", rec.Offset, string(rec.Data))
+
+	// Get last record
+	lastRec, err := wal.LastRecord(ctx)
+	if err != nil {
+		log.Fatalf("LastRecord failed: %v", err)
+	}
+	fmt.Printf("Last record: offset=%d, data=%s\n", lastRec.Offset, string(lastRec.Data))
+
+	// Truncate after offset 2
+	fmt.Println("Truncating WAL after offset 2...")
+	if err := wal.Truncate(ctx, 2); err != nil {
+		log.Fatalf("Truncate failed: %v", err)
+	}
+
+	// Recover again
+	lastOffset, _ = wal.Recover(ctx)
+	fmt.Println("Last offset after truncate:", lastOffset)
 }
