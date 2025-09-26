@@ -1,6 +1,6 @@
 # S3 WAL (Write-Ahead Log)
 
-A Go implementation of a Write-Ahead Log (WAL) that persists each log record as an object in **AWS S3**. Each record includes an offset, data, and SHA256 checksum for integrity.
+A simple **Write-Ahead Log (WAL)** implementation using AWS S3 as the storage backend, written in Go. Each log record is stored as a separate object in S3, enabling durable, append-only logging with recovery, reading, and truncation capabilities.
 
 ---
 
@@ -14,7 +14,16 @@ A Go implementation of a Write-Ahead Log (WAL) that persists each log record as 
 - **Data integrity** via SHA256 checksums.
 - **Concurrency-safe** using mutexes.
 
+
 ---
+
+## Requirements
+
+Go 1.21+
+
+AWS account with an S3 bucket
+
+AWS credentials configured via environment variables, AWS CLI, or .env file
 
 ## S3 Object Format
 
@@ -26,9 +35,13 @@ Example key: `wal/00000000000000000001`
 ## Installation
 
 ```bash
-git clone <repo-url>
-cd s3-wal-demo
+git clone https://github.com/roshr2211/s3-wal.git
+cd s3-wal
 go mod tidy
+
+# Build the CLI tool
+go build -o s3wal ./cmd/s3wal
+
 ```
 
 ## Configuration
@@ -44,7 +57,7 @@ AWS_PREFIX=wal
 
  ## Usage
  ```bash 
- go run main.go
+ go run main1.go
  ```
 
 ## example output
@@ -57,3 +70,66 @@ Last record: offset=2, data=Record #2
 Truncating WAL after offset 1...
 Last offset after truncate: 1
 ```
+
+Or you can pass the bucket and prefix via CLI flags:
+```
+--bucket <bucket-name> --prefix <prefix>
+```
+
+## CLI Usage
+```
+# Recover WAL state from S3
+./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo recover
+
+# Append records
+./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo append "Record #1"
+./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo append "Record #2"
+
+# Read records
+./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo read 1
+./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo read 2
+
+# Get the last record
+./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo last
+
+# Truncate WAL after a specific offset
+./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo truncate 2
+```
+
+
+## How It Works
+
+Each WAL record is stored as a separate S3 object:
+
+```
+<prefix>/<20-digit zero-padded offset>
+```
+
+
+Record structure:
+```
+[8-byte offset][data][32-byte SHA256 checksum]
+```
+
+On startup or before any operation, Recover scans S3 to find the latest offset.
+
+Appending a new record automatically increments the offset.
+
+Truncate deletes all records after a given offset.
+
+## Example Output
+```
+$ ./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo append "Hello World"
+Appended record at offset: 1, data: Hello World
+
+$ ./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo read 1
+Offset: 1, Data: Hello World
+
+$ ./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo last
+Last record: offset=1, data=Hello World
+
+$ ./s3wal --bucket roshni-wal-demo-bucket --prefix wal-demo truncate 0
+Truncated WAL after offset 0
+```
+
+- A script is added for CLI testing
